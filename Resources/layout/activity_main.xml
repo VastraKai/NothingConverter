@@ -15,7 +15,8 @@
             android:paddingRight="24dp"
             android:paddingTop="48dp"
             android:paddingBottom="32dp">
-        <!-- todo: use an actual nothing-style dotmatrix font for the title -->
+        <!-- the build fucking breaks when you put caps in the name of the font
+             this fucking sucks --> 
         <TextView
                 android:id="@+id/tvAppTitle"
                 android:layout_width="match_parent"

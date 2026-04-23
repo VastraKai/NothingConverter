@@ -9,6 +9,9 @@ using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
 using Ffmpegkit.Droid;
+using NothingConverter.Services;
+using AlertDialog = Android.App.AlertDialog;
+
 #pragma warning disable CA1416
 
 namespace NothingConverter;
@@ -19,6 +22,7 @@ public struct ConvertedFile
     public string RelativePath { get; init; }
     public string DisplayName { get; init; }
 }
+
 [Activity(
     Label = "Nothing Encoder",
     MainLauncher = true,
@@ -27,68 +31,73 @@ public struct ConvertedFile
 [IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "audio/*")]
 [IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "video/*")]
 [IntentFilter(new[] { Intent.ActionSend }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "image/*")]
-[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "audio/*")]
-[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "video/*")]
-[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault }, DataMimeType = "image/*")]
+[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault },
+    DataMimeType = "audio/*")]
+[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault },
+    DataMimeType = "video/*")]
+[IntentFilter(new[] { Intent.ActionSendMultiple }, Categories = new[] { Intent.CategoryDefault },
+    DataMimeType = "image/*")]
 public class MainActivity : AppCompatActivity
 {
     private const int RequestPickMedia = 1001;
+    private const string PrefsName = "encoder_prefs";
+    private const string PrefNeverShowUpdatePrompt = "never_show_update_prompt";
 
     private List<Android.Net.Uri> _selectedUris = [];
     private List<ConvertedFile> _lastConvertedFiles = [];
     private FormatInfo.OutputFormat _selectedFormat = FormatInfo.All[0];
     private bool _settingsExpanded = false;
 
-    private TextView     _tvAppTitle          = null!;
-    private TextView     _tvAppSubtitle       = null!;
-    private TextView     _tvFileName          = null!;
-    private TextView     _tvFileFormat        = null!;
-    private TextView     _tvStatus            = null!;
-    private TextView     _tvSelectedFileLabel = null!;
-    private TextView     _tvSettingsChevron   = null!;
-    private LinearLayout _cardFileInfo        = null!;
+    private TextView _tvAppTitle = null!;
+    private TextView _tvAppSubtitle = null!;
+    private TextView _tvFileName = null!;
+    private TextView _tvFileFormat = null!;
+    private TextView _tvStatus = null!;
+    private TextView _tvSelectedFileLabel = null!;
+    private TextView _tvSettingsChevron = null!;
+    private LinearLayout _cardFileInfo = null!;
     private LinearLayout _layoutSettingsToggle = null!;
-    private LinearLayout _layoutSettingsBody  = null!;
-    private Spinner      _spinnerFormat       = null!;
-    private EditText     _etOutputPath        = null!;
-    private Button       _btnSelectFile       = null!;
-    private Button       _btnConvert          = null!;
-    private LinearLayout _layoutShareView     = null!;
-    private TextView     _tvShareButton     = null!;
-    private TextView     _tvViewButton      = null!;
+    private LinearLayout _layoutSettingsBody = null!;
+    private Spinner _spinnerFormat = null!;
+    private EditText _etOutputPath = null!;
+    private Button _btnSelectFile = null!;
+    private Button _btnConvert = null!;
+    private LinearLayout _layoutShareView = null!;
+    private TextView _tvShareButton = null!;
+    private TextView _tvViewButton = null!;
 
-    protected override void OnCreate(Bundle? savedInstanceState)
+    protected override async void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
         SetContentView(ResourceConstant.Layout.activity_main);
 
-        FFmpegKitConfig.EnableRedirection(); 
+        FFmpegKitConfig.EnableRedirection();
         FFmpegKitConfig.LogRedirectionStrategy = LogRedirectionStrategy.NeverPrintLogs;
         FFmpegKitConfig.LogLevel = Level.AvLogWarning;
 
         _selectedUris = [];
         _lastConvertedFiles = [];
-        _tvAppTitle           = FindViewById<TextView>(ResourceConstant.Id.tvAppTitle)!;
-        _tvAppSubtitle        = FindViewById<TextView>(ResourceConstant.Id.tvAppSubtitle)!;
-        _tvFileName           = FindViewById<TextView>(ResourceConstant.Id.tvFileName)!;
-        _tvFileFormat         = FindViewById<TextView>(ResourceConstant.Id.tvFileFormat)!;
-        _tvStatus             = FindViewById<TextView>(ResourceConstant.Id.tvStatus)!;
-        _tvSelectedFileLabel  = FindViewById<TextView>(ResourceConstant.Id.tvSelectedFileLabel)!;
-        _tvSettingsChevron    = FindViewById<TextView>(ResourceConstant.Id.tvSettingsChevron)!;
-        _cardFileInfo         = FindViewById<LinearLayout>(ResourceConstant.Id.cardFileInfo)!;
+        _tvAppTitle = FindViewById<TextView>(ResourceConstant.Id.tvAppTitle)!;
+        _tvAppSubtitle = FindViewById<TextView>(ResourceConstant.Id.tvAppSubtitle)!;
+        _tvFileName = FindViewById<TextView>(ResourceConstant.Id.tvFileName)!;
+        _tvFileFormat = FindViewById<TextView>(ResourceConstant.Id.tvFileFormat)!;
+        _tvStatus = FindViewById<TextView>(ResourceConstant.Id.tvStatus)!;
+        _tvSelectedFileLabel = FindViewById<TextView>(ResourceConstant.Id.tvSelectedFileLabel)!;
+        _tvSettingsChevron = FindViewById<TextView>(ResourceConstant.Id.tvSettingsChevron)!;
+        _cardFileInfo = FindViewById<LinearLayout>(ResourceConstant.Id.cardFileInfo)!;
         _layoutSettingsToggle = FindViewById<LinearLayout>(ResourceConstant.Id.layoutSettingsToggle)!;
-        _layoutSettingsBody   = FindViewById<LinearLayout>(ResourceConstant.Id.layoutSettingsBody)!;
-        _spinnerFormat        = FindViewById<Spinner>(ResourceConstant.Id.spinnerFormat)!;
-        _etOutputPath         = FindViewById<EditText>(ResourceConstant.Id.etOutputPath)!;
-        _btnSelectFile        = FindViewById<Button>(ResourceConstant.Id.btnSelectFile)!;
-        _btnConvert           = FindViewById<Button>(ResourceConstant.Id.btnConvert)!;
-        _layoutShareView      = FindViewById<LinearLayout>(ResourceConstant.Id.layoutShareView)!;
-        _tvShareButton        = FindViewById<TextView>(ResourceConstant.Id.tvShareButton)!;
-        _tvViewButton         = FindViewById<TextView>(ResourceConstant.Id.tvViewButton)!;
-        
+        _layoutSettingsBody = FindViewById<LinearLayout>(ResourceConstant.Id.layoutSettingsBody)!;
+        _spinnerFormat = FindViewById<Spinner>(ResourceConstant.Id.spinnerFormat)!;
+        _etOutputPath = FindViewById<EditText>(ResourceConstant.Id.etOutputPath)!;
+        _btnSelectFile = FindViewById<Button>(ResourceConstant.Id.btnSelectFile)!;
+        _btnConvert = FindViewById<Button>(ResourceConstant.Id.btnConvert)!;
+        _layoutShareView = FindViewById<LinearLayout>(ResourceConstant.Id.layoutShareView)!;
+        _tvShareButton = FindViewById<TextView>(ResourceConstant.Id.tvShareButton)!;
+        _tvViewButton = FindViewById<TextView>(ResourceConstant.Id.tvViewButton)!;
+
         _tvShareButton.Click += OnShareClicked;
         _tvShareButton.Clickable = true;
-        
+
         _tvViewButton.Click += OnViewClicked;
         _tvViewButton.Clickable = true;
 
@@ -102,7 +111,8 @@ public class MainActivity : AppCompatActivity
             try
             {
                 OnConvertClicked(sender, args);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Log.Error("NothingEncoder", $"Conversion error: {ex}");
                 Toast.MakeText(this, "An error occurred during conversion.", ToastLength.Long)?.Show();
@@ -110,21 +120,22 @@ public class MainActivity : AppCompatActivity
         };
 
         HandleIncomingIntent(Intent);
-        
-        var prefs = GetSharedPreferences("encoder_prefs", FileCreationMode.Private);
+
+        var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
         var savedPath = prefs.GetString("output_path", null);
         if (!string.IsNullOrEmpty(savedPath))
             _etOutputPath.SetText(savedPath, TextView.BufferType.Editable);
 
         var formatIndex = prefs.GetInt("format_index", 0);
-        if (formatIndex >= 0 && formatIndex < FormatInfo.All.Length)        
+        if (formatIndex >= 0 && formatIndex < FormatInfo.All.Length)
         {
             _selectedFormat = FormatInfo.All[formatIndex];
             _spinnerFormat.SetSelection(formatIndex);
             _tvAppSubtitle.Text = "→ " + _selectedFormat.Extension.ToUpperInvariant();
         }
-        
+
         CleanupCache();
+        await RunUpdateCheck();
     }
 
     private void SetupSettingsToggle()
@@ -217,7 +228,7 @@ public class MainActivity : AppCompatActivity
         {
             _selectedFormat = FormatInfo.All[e.Position];
             _tvAppSubtitle.Text = "→ " + _selectedFormat.Extension.ToUpperInvariant();
-            var prefs = GetSharedPreferences("encoder_prefs", FileCreationMode.Private);
+            var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
             prefs.Edit()!.PutInt("format_index", e.Position).Apply();
         };
     }
@@ -231,7 +242,7 @@ public class MainActivity : AppCompatActivity
         _layoutShareView.Visibility = ViewStates.Gone;
         _selectedUris.Clear();
         _lastConvertedFiles.Clear();
-        
+
         var pick = new Intent(Intent.ActionGetContent);
         pick.SetType("*/*");
         pick.PutExtra(Intent.ExtraMimeTypes, new[] { "audio/*", "video/*", "image/*" });
@@ -243,24 +254,26 @@ public class MainActivity : AppCompatActivity
     protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
-        Log.Info("NothingEncoder", $"OnActivityResult: requestCode={requestCode}, resultCode={resultCode}, data={data}");
+        Log.Info("NothingEncoder",
+            $"OnActivityResult: requestCode={requestCode}, resultCode={resultCode}, data={data}");
         Log.Info("NothingEncoder", $"Data URI: {data?.Data}");
         if (requestCode != RequestPickMedia || resultCode != Result.Ok ||
             (data?.Data == null && data?.ClipData == null)) return;
-        
+
         if (data.ClipData != null)
         {
             var clipData = data.ClipData!;
             var uris = new Android.Net.Uri[clipData.ItemCount];
-            for (int i = 0; i < clipData.ItemCount; i++)                
+            for (int i = 0; i < clipData.ItemCount; i++)
             {
                 uris[i] = clipData.GetItemAt(i)?.Uri!;
                 Log.Info("NothingEncoder", $"ClipData URI[{i}]: {uris[i]}");
             }
+
             LoadUris(uris);
             return;
         }
-            
+
         Log.Info("NothingEncoder", $"Received URI from picker: {data.Data}");
         LoadUris(data.Data);
     }
@@ -273,10 +286,10 @@ public class MainActivity : AppCompatActivity
             SetStatus("NO FILES LOADED??");
             return;
         }
-        
+
         _selectedUris.Clear();
         _selectedUris.AddRange(uris);
-        
+
         if (_selectedUris.Count > 1)
         {
             var firstType = ContentResolver.GetType(_selectedUris[0])?.Split('/')[0];
@@ -301,27 +314,27 @@ public class MainActivity : AppCompatActivity
                 }
             }
         }
-        
+
         if (uris.Length == 1) ShowSelectedFileInfo(uris[0]);
         else ShowMultipleFilesInfo(uris.Length);
 
-        
+
         SetStatus("READY TO CONVERT");
         SetConvertEnabled(true);
     }
-    
+
     private void ShowSelectedFileInfo(Android.Net.Uri uri)
     {
         var displayName = ConverterService.GetFileNameFromUri(this, uri);
         var ext = Path.GetExtension(displayName).ToUpperInvariant().TrimStart('.');
-        
-        _tvFileName.Text   = displayName;
+
+        _tvFileName.Text = displayName;
         _tvFileFormat.Visibility = ViewStates.Visible;
         _tvFileFormat.Text = string.IsNullOrEmpty(ext) ? "" : $"[ {ext} ]";
-        _cardFileInfo.Visibility        = ViewStates.Visible;
+        _cardFileInfo.Visibility = ViewStates.Visible;
         _tvSelectedFileLabel.Visibility = ViewStates.Visible;
     }
-    
+
     public void ShowMultipleFilesInfo(int count)
     {
         _tvFileName.Text = $"{count} files selected";
@@ -329,14 +342,14 @@ public class MainActivity : AppCompatActivity
         _cardFileInfo.Visibility = ViewStates.Visible;
         _tvSelectedFileLabel.Visibility = ViewStates.Visible;
     }
-    
+
     private void CleanupCache()
     {
         try
         {
             var cacheDir = this.CacheDir!.AbsolutePath;
             var directory = new DirectoryInfo(cacheDir);
-        
+
             foreach (var file in directory.GetFiles())
             {
                 if (file.LastWriteTime < DateTime.Now.AddMinutes(-10))
@@ -352,6 +365,56 @@ public class MainActivity : AppCompatActivity
         }
     }
 
+    private async Task RunUpdateCheck()
+    {
+        var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
+        if (prefs.GetBoolean(PrefNeverShowUpdatePrompt, false))
+        {
+            Log.Info("NothingEncoder", "Update check skipped");
+            return;
+        }
+
+        var releaseInfo = await UpdateChecker.FetchLatestReleaseInfoAsync();
+        if (releaseInfo == null) return;
+
+        var update = await UpdateChecker.IsUpdateAvailableAsync(UpdateChecker.GetCurrentTag(), releaseInfo);
+
+        if (IsFinishing || IsDestroyed) return;
+
+        if (!update.IsUpdateAvailable)
+        {
+            Log.Info("NothingEncoder", "No update available.");
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+            .SetTitle($"Update available: {update.LatestVersion}")
+            ?.SetMessage(
+                $"You are currently on version {update.CurrentVersion}. Would you like to view the latest release on GitHub?")
+            ?.SetPositiveButton("View on GitHub", (_, _) =>
+            {
+                Log.Info("NothingEncoder", $"Opening update URL: {update.ReleaseUrl}");
+                var intent = new Intent(Intent.ActionView, Android.Net.Uri.Parse(update.ReleaseUrl));
+                StartActivity(intent);
+            })
+            ?.SetNegativeButton("Later", (_, _) => { })
+            ?.SetNeutralButton("Never show again", (_, _) =>
+            {
+                new AlertDialog.Builder(this)
+                    .SetTitle("Disable update checking?")
+                    ?.SetMessage(
+                        "You won't see update prompts anymore unless you reinstall or clear app data. Are you sure?")
+                    ?.SetPositiveButton("Disable", (_, _) =>
+                    {
+                        prefs.Edit()!.PutBoolean(PrefNeverShowUpdatePrompt, true).Apply();
+                        Toast.MakeText(this, "Update checking disabled.", ToastLength.Short)?.Show();
+                    })
+                    ?.SetNegativeButton("Cancel", (_, _) => { })
+                    ?.Show();
+            })
+            ?.Show();
+    }
+
     private async void OnConvertClicked(object? sender, EventArgs e)
     {
         if (_selectedUris.Count == 0)
@@ -363,7 +426,7 @@ public class MainActivity : AppCompatActivity
         SetConvertEnabled(false);
         SetSelectEnabled(false);
         SetStatus("STARTING CONVERSION...");
-        
+
         List<ConvertedFile> convertedFiles = [];
         int index = 0;
         if (_selectedUris.Count > 1) _tvAppTitle.Text = $"ENCODER_ {index}/{_selectedUris.Count}";
@@ -372,27 +435,26 @@ public class MainActivity : AppCompatActivity
             index++;
             var processedCount = index;
             if (_selectedUris.Count > 1)
-                _tvAppTitle.Post(() =>
-                {
-                    _tvAppTitle.Text = $"ENCODER_ {processedCount}/{_selectedUris.Count}";
-                });
-            
+                _tvAppTitle.Post(() => { _tvAppTitle.Text = $"ENCODER_ {processedCount}/{_selectedUris.Count}"; });
+
             var result = await DoConvert(uri);
             if (result != null) convertedFiles.Add((ConvertedFile)result);
         }
-        
+
         _tvAppTitle.Text = "ENCODER_ ✓";
         _layoutShareView.Visibility = ViewStates.Visible;
         _lastConvertedFiles = convertedFiles;
-        
-        
+
+
         try
         {
             var vibrator = (Vibrator?)GetSystemService(VibratorService);
             vibrator?.Vibrate(VibrationEffect.CreateWaveform(new long[] { 0, 30, 60, 30 }, -1));
         }
-        catch { }
-        
+        catch
+        {
+        }
+
         if (convertedFiles.Count > 1)
         {
             SetStatus($"SAVED: {convertedFiles.Count} files");
@@ -403,7 +465,7 @@ public class MainActivity : AppCompatActivity
     {
         var customPath = _etOutputPath.Text?.Trim();
 
-        var prefs = GetSharedPreferences("encoder_prefs", FileCreationMode.Private);
+        var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
         prefs.Edit()!.PutString("output_path", customPath ?? "").Apply();
 
         SetConvertEnabled(false);
@@ -417,17 +479,17 @@ public class MainActivity : AppCompatActivity
                 ConverterService.CopyUriToCache(this, uri)).ConfigureAwait(false);
 
             var displayName = await Task.Run(() => ConverterService.GetFileNameFromUri(this, uri));
-            var baseName    = Path.GetFileNameWithoutExtension(displayName);
+            var baseName = Path.GetFileNameWithoutExtension(displayName);
             var progress = new Progress<string>(SetStatus);
 
             var savedName = await ConverterService.ConvertAndSaveAsync(
                 this, tempInputPath, baseName, _selectedFormat,
                 customOutputPath: string.IsNullOrWhiteSpace(customPath) ? null : customPath,
                 progress: progress).ConfigureAwait(false);
-            
-    
+
+
             SetStatus($"SAVED: {displayName}");
-           
+
             return new ConvertedFile
             {
                 FilePath = ConverterService.LastSavedFile,
@@ -445,13 +507,19 @@ public class MainActivity : AppCompatActivity
         {
             SetSelectEnabled(true);
             if (tempInputPath != null && File.Exists(tempInputPath))
-                try { File.Delete(tempInputPath); } catch { }
+                try
+                {
+                    File.Delete(tempInputPath);
+                }
+                catch
+                {
+                }
         }
-        
+
         return null;
     }
 
-    
+
     private void OnShareClicked(object? sender, EventArgs e)
     {
         if (_lastConvertedFiles.Count == 0) return;
@@ -496,7 +564,7 @@ public class MainActivity : AppCompatActivity
             Log.Error("NothingEncoder", $"Share error: {ex.Message}");
         }
     }
-    
+
     private void OnViewClicked(object? sender, EventArgs e)
     {
         if (_lastConvertedFiles.Count == 0) return;
@@ -506,10 +574,12 @@ public class MainActivity : AppCompatActivity
         {
             // This doesn't work on debug mode for some reason and
             // i want to prevent it from deadlocking the while im testing
-            Toast.MakeText(this, $"View folder: {lastSavedRelativePath}\n(Viewing doesn't currently\nwork with a debugger attached)", ToastLength.Long)?.Show();
+            Toast.MakeText(this,
+                $"View folder: {lastSavedRelativePath}\n(Viewing doesn't currently\nwork with a debugger attached)",
+                ToastLength.Long)?.Show();
             return;
         }
-        
+
 
         Task.Run(() =>
         {
@@ -525,7 +595,10 @@ public class MainActivity : AppCompatActivity
 
                 RunOnUiThread(() =>
                 {
-                    try { StartActivity(intent); }
+                    try
+                    {
+                        StartActivity(intent);
+                    }
                     catch
                     {
                         Toast.MakeText(this, $"Saved to: {lastSavedRelativePath}", ToastLength.Long)?.Show();
@@ -551,19 +624,19 @@ public class MainActivity : AppCompatActivity
         else
             _tvStatus.Post(() => _tvStatus.Text = msg);
     }
-    
+
     private void SetSelectEnabled(bool enabled)
     {
         if (IsMainLooper())
         {
             _btnSelectFile.Enabled = enabled;
-            _btnSelectFile.Alpha   = enabled ? 1f : 0.4f;
+            _btnSelectFile.Alpha = enabled ? 1f : 0.4f;
         }
         else
             _btnSelectFile.Post(() =>
             {
                 _btnSelectFile.Enabled = enabled;
-                _btnSelectFile.Alpha   = enabled ? 1f : 0.4f;
+                _btnSelectFile.Alpha = enabled ? 1f : 0.4f;
             });
     }
 
@@ -572,13 +645,13 @@ public class MainActivity : AppCompatActivity
         if (IsMainLooper())
         {
             _btnConvert.Enabled = enabled;
-            _btnConvert.Alpha   = enabled ? 1f : 0.4f;
+            _btnConvert.Alpha = enabled ? 1f : 0.4f;
         }
         else
             _btnConvert.Post(() =>
             {
                 _btnConvert.Enabled = enabled;
-                _btnConvert.Alpha   = enabled ? 1f : 0.4f;
+                _btnConvert.Alpha = enabled ? 1f : 0.4f;
             });
     }
 }

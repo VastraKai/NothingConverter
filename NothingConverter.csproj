@@ -7,31 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationId>com.emi.NothingEncoder</ApplicationId>
 
-    <ApplicationDisplayVersion></ApplicationDisplayVersion>
-    <ApplicationVersion></ApplicationVersion>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MinVer" Version="7.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="MinVer" Version="7.0.0" PrivateAssets="all" />
     <PackageReference Include="Xamarin.FFmpegKit.FullGpl.Android" Version="5.1.0-beta1" />
     <PackageReference Include="Xamarin.Google.Android.Material" Version="1.13.0.2" />
   </ItemGroup>
-
-  <Target Name="InjectMinVer" AfterTargets="MinVer" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;_GenerateAndroidManifest">
-    <PropertyGroup>
-      <ApplicationDisplayVersion>$(MinVerVersion)</ApplicationDisplayVersion>
-
-      <ApplicationVersion Condition="'$(MinVerHeight)' != '' and '$(MinVerHeight)' != '0'">$(MinVerHeight)</ApplicationVersion>
-      <ApplicationVersion Condition="'$(MinVerHeight)' == '' or '$(MinVerHeight)' == '0'">1</ApplicationVersion>
-
-      <Version>$(MinVerVersion)</Version>
-      <AssemblyVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch).0</AssemblyVersion>
-      <FileVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch).0</FileVersion>
-    </PropertyGroup>
-
-    <Message Importance="high" Text="*** VERSIONING APPLIED: Display=$(ApplicationDisplayVersion), Code=$(ApplicationVersion) ***" />
-  </Target>
 </Project>

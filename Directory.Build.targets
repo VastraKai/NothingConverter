@@ -1,0 +1,13 @@
+<Project>
+    <Target Name="MinVerSurgery" AfterTargets="_ManifestMerger">
+        <PropertyGroup>
+            <_VName>$(MinVerVersion)</_VName>
+            <_VCode>$(MinVerMajor)0$(MinVerMinor)0$(MinVerPatch)</_VCode>
+        </PropertyGroup>
+
+        <Exec Command="find $(IntermediateOutputPath) -name AndroidManifest.xml -exec sed -i 's/android:versionCode=&quot;[0-9.]*&quot;/android:versionCode=&quot;$(_VCode)&quot;/g' {} +" />
+        <Exec Command="find $(IntermediateOutputPath) -name AndroidManifest.xml -exec sed -i 's/android:versionName=&quot;[0-9.]*&quot;/android:versionName=&quot;$(_VName)&quot;/g' {} +" />
+        <!-- This is fucking stupid please don't hurt me -->
+        <Warning Text="Force-injected $(_VName) into all manifests found in $(IntermediateOutputPath)" />
+    </Target>
+</Project>

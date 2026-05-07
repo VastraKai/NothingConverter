@@ -367,52 +367,59 @@ public class MainActivity : AppCompatActivity
 
     private async Task RunUpdateCheck()
     {
-        var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
-        if (prefs.GetBoolean(PrefNeverShowUpdatePrompt, false))
+        try
         {
-            Log.Info("NothingEncoder", "Update check skipped");
-            return;
-        }
+            var prefs = GetSharedPreferences(PrefsName, FileCreationMode.Private);
+            if (prefs.GetBoolean(PrefNeverShowUpdatePrompt, false))
+            {
+                Log.Info("NothingEncoder", "Update check skipped");
+                return;
+            }
 
-        var releaseInfo = await UpdateChecker.FetchLatestReleaseInfoAsync();
-        if (releaseInfo == null) return;
+            var releaseInfo = await UpdateChecker.FetchLatestReleaseInfoAsync();
+            if (releaseInfo == null) return;
 
-        var update = await UpdateChecker.IsUpdateAvailableAsync(UpdateChecker.GetCurrentTag(), releaseInfo);
+            var update = await UpdateChecker.IsUpdateAvailableAsync(UpdateChecker.GetCurrentTag(), releaseInfo);
 
-        if (IsFinishing || IsDestroyed) return;
+            if (IsFinishing || IsDestroyed) return;
 
-        if (!update.IsUpdateAvailable)
+            if (!update.IsUpdateAvailable)
+            {
+                Log.Info("NothingEncoder", "No update available.");
+                return;
+            }
+
+            new AlertDialog.Builder(this)
+                .SetTitle($"Update available: {update.LatestVersion}")
+                ?.SetMessage(
+                    $"You are currently on version {update.CurrentVersion}. Would you like to view the latest release on GitHub?")
+                ?.SetPositiveButton("View on GitHub", (_, _) =>
+                {
+                    Log.Info("NothingEncoder", $"Opening update URL: {update.ReleaseUrl}");
+                    var intent = new Intent(Intent.ActionView, Android.Net.Uri.Parse(update.ReleaseUrl));
+                    StartActivity(intent);
+                })
+                ?.SetNegativeButton("Later", (_, _) => { })
+                ?.SetNeutralButton("Never show again", (_, _) =>
+                {
+                    new AlertDialog.Builder(this)
+                        .SetTitle("Disable update checking?")
+                        ?.SetMessage(
+                            "You won't see update prompts anymore unless you reinstall or clear app data. Are you sure?")
+                        ?.SetPositiveButton("Disable", (_, _) =>
+                        {
+                            prefs.Edit()!.PutBoolean(PrefNeverShowUpdatePrompt, true).Apply();
+                            Toast.MakeText(this, "Update checking disabled.", ToastLength.Short)?.Show();
+                        })
+                        ?.SetNegativeButton("Cancel", (_, _) => { })
+                        ?.Show();
+                })
+                ?.Show();
+        } catch (Exception ex)
         {
-            Log.Info("NothingEncoder", "No update available.");
-            return;
+            Toast.MakeText(this, "Failed to check for updates.", ToastLength.Short)?.Show();
+            Log.Warn("NothingEncoder", $"Update check failed: {ex.Message}");
         }
-
-        new AlertDialog.Builder(this)
-            .SetTitle($"Update available: {update.LatestVersion}")
-            ?.SetMessage(
-                $"You are currently on version {update.CurrentVersion}. Would you like to view the latest release on GitHub?")
-            ?.SetPositiveButton("View on GitHub", (_, _) =>
-            {
-                Log.Info("NothingEncoder", $"Opening update URL: {update.ReleaseUrl}");
-                var intent = new Intent(Intent.ActionView, Android.Net.Uri.Parse(update.ReleaseUrl));
-                StartActivity(intent);
-            })
-            ?.SetNegativeButton("Later", (_, _) => { })
-            ?.SetNeutralButton("Never show again", (_, _) =>
-            {
-                new AlertDialog.Builder(this)
-                    .SetTitle("Disable update checking?")
-                    ?.SetMessage(
-                        "You won't see update prompts anymore unless you reinstall or clear app data. Are you sure?")
-                    ?.SetPositiveButton("Disable", (_, _) =>
-                    {
-                        prefs.Edit()!.PutBoolean(PrefNeverShowUpdatePrompt, true).Apply();
-                        Toast.MakeText(this, "Update checking disabled.", ToastLength.Short)?.Show();
-                    })
-                    ?.SetNegativeButton("Cancel", (_, _) => { })
-                    ?.Show();
-            })
-            ?.Show();
     }
 
     private async void OnConvertClicked(object? sender, EventArgs e)
